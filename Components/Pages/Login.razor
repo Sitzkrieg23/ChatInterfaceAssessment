@@ -1,0 +1,44 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.Identity
+@rendermode InteractiveServer
+
+<PageTitle>Login</PageTitle>
+
+<!--Login form-->
+<div class="loginForm container d-flex flex-column align-content-center align-items-center justify-content-center min-vh-100">
+    <h2>DeepGPT</h2>
+    <div>
+        <label for="Username" class="form-label">Username:</label><br />
+        <input type="text" name="Username" @bind="Username" class="form-control"/><br />
+    </div>
+    <div>
+        <label for="Password" class="form-label">Password:</label><br />
+        <input type="password" name="Password" @bind="Password" class="form-control" /><br />
+    </div>  
+    <button class="btn primary-button" @onclick="LoginUser">Login</button>
+</div>
+
+@code {
+    [Inject]
+    NavigationManager navigationManager { get; set; }
+    PasswordHasher<object> passwordHasher = new PasswordHasher<object>();
+
+    //Initialisation
+    private string Username = "";
+    private string Password = "";
+    private object User;
+    //Constant used to represent username that would be stored in a database
+    const string CorrectUsername = "Admin";
+    //Constant used to represent hashed password that would be stored in a database
+    const string HashedPassword = "AQAAAAIAAYagAAAAEEYiTeyLZWrNGSMBUVAeijkp4D/yS158StjWXq6DguTjVxdJyJPM7LQaCMEuyCHGTA==";
+
+    //Action to login the user
+    private void LoginUser()
+    {
+        var VerificationResult = passwordHasher.VerifyHashedPassword(User, HashedPassword, Password);
+        if (Username == CorrectUsername && VerificationResult == PasswordVerificationResult.Success)
+        {
+            navigationManager.NavigateTo("/chat");
+        }
+    }
+}

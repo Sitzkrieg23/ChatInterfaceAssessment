@@ -1,0 +1,11 @@
+﻿	<div class="d-flex flex-row-reverse mw-100">
+		<div class="chatMessage" style="background-color: #2c302b; max-width: 60%">
+			<p>@inMessage</p>
+		</div>
+	</div>
+
+@code {
+	[Parameter]
+	public string inMessage { get; set; }
+	public bool isUser { get; set; }
+}

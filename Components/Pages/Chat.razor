@@ -1,0 +1,184 @@
+﻿@rendermode InteractiveServer
+@using System.Text;
+@using System.Text.Json;
+@using System.Net.Http
+@inject ILogger<Chat> Logger
+@page "/chat"
+
+<div class="container d-flex flex-column align-content-center align-items-center justify-content-center min-vh-100 chatContainer">
+    <h2>DeepGPT</h2>
+    <div class="chatBox">
+        @foreach (var chat in chatHistory)
+        {
+            @chat
+        }
+    </div>
+    <div class="d-flex flex-column align-content-center align-items-center justify-content-center" style="margin-top: 30px">
+        <div>
+            <input class="form-control" type="text" name="ChatMessage" placeholder="Enter a message" @bind="ChatMessage" style="width: 220px" />
+        </div>
+        <div class="container d-flex flex-row">
+            <div>
+                <button class="btn primary-button" disabled="@isRunning" @onclick="EnterChat">Enter</button>
+            </div>
+            <div style="margin-left: 20px">
+                <button class="btn btn-secondary" disabled="@isRunning" @onclick="ClearChat">Clear</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    //Initialisation
+    //API Key
+    const string APIKey = "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";
+    //API Address
+    const string ChatCompletionAddress = "https://openrouter.ai/api/v1/chat/completions";
+    private string ChatMessage = "";
+    //String representing API response
+    private string resultContent = "";
+    private string resultMessage = "";
+    private bool isRunning;
+    private HttpClient httpClient = new HttpClient();
+    private List<RenderFragment> chatHistory = new List<RenderFragment>();
+    private List<RenderFragment> chatHistory2 = new List<RenderFragment>();
+
+    //Class used for API call response
+    private class Choice
+    {
+        public object logprobs { get; set; }
+        public string finish_reason { get; set; }
+        public string native_finish_reason { get; set; }
+        public int index { get; set; }
+        public Message message { get; set; }
+    }
+
+    //Class used for API call response
+    private class ChatCompleteResult
+    {
+        public string id { get; set; }
+        public string provider { get; set; }
+        public string model { get; set; }
+        public string @object { get; set; }
+        public int created { get; set; }
+        public List<Choice> choices { get; set; }
+        public Usage usage { get; set; }
+    }
+
+    //Class used for API call response
+    private class Usage
+    {
+        public int prompt_tokens { get; set; }
+        public int completion_tokens { get; set; }
+        public int total_tokens { get; set; }
+    }
+
+    //Class used for API call response and post
+    private class Message
+    {
+        public string role { get; set; }
+        public string content { get; set; }
+    }
+
+    //Class used for API call post body
+    private class ChatCompletionBody
+    {
+        public string model { get; set; }
+        public Message[] messages { get; set; }
+    }
+
+    //Add chat message for user
+    private void AppendChatUser(string inMessage)
+    {
+        chatHistory.Add(builder =>
+        {
+            builder.OpenComponent(0, typeof(UserMessage));
+            builder.AddAttribute(1, "inMessage", inMessage);
+            builder.CloseComponent();
+        });
+    }
+
+    //Add chat message for user
+    private void AppendChatResponse(string inMessage)
+    {
+        chatHistory.Add(builder =>
+        {
+            builder.OpenComponent(0, typeof(ResponseMessage));
+            builder.AddAttribute(1, "inResponse", inMessage);
+            builder.CloseComponent();
+        });
+    }
+
+    //Button on click method
+    private async void EnterChat()
+    {
+        await ChatCompletion(ChatMessage);
+    }
+
+    //Clear chat history
+    private void ClearChat()
+    {
+        ChatMessage = "";
+        chatHistory.Clear();
+    }
+
+    //Task to get API post response
+    private async Task ChatCompletion(string Message)
+    {
+        resultContent = "";
+        isRunning = true;
+        //Add user message
+        AppendChatUser(Message);
+        //Add loading message
+        AppendChatResponse("Loading respone...");
+        try
+        {
+            ChatCompletionBody chatCompletionBody = new ChatCompletionBody
+            {
+                model = "deepseek/deepseek-r1-zero:free",
+                messages = [new Message { role = "user", content = Message }]
+            };
+
+            string json = JsonSerializer.Serialize(chatCompletionBody);
+            StringContent content = new StringContent(json, Encoding.UTF8, "application/json");
+            //Add Auth Token
+            httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", APIKey);
+            var result = await httpClient.PostAsync(ChatCompletionAddress, content);
+
+            //Success
+            if (result.IsSuccessStatusCode)
+            {
+                resultContent = "Done";
+                ChatCompleteResult chatCompleteResult = JsonSerializer.Deserialize<ChatCompleteResult>(await result.Content.ReadAsStringAsync());
+                resultContent = chatCompleteResult.choices[0].message.content;
+                //The response has built in formatting text, which the following removes
+                resultContent = resultContent.Remove(0, 7);
+                resultContent = resultContent.Remove(resultContent.Length - 1, 1);
+            }
+            //Error
+            else
+            {
+                resultContent = "Error: " + result.StatusCode;
+            }
+        }
+        //Catch
+        catch (Exception ex)
+        {
+            Logger.LogError($"Exception: {ex.Message}");
+            resultContent = $"Exception: {ex.Message}";
+        }
+        finally
+        {
+            resultMessage = resultContent;
+            //Remove loading message
+            chatHistory.RemoveAt(chatHistory.Count - 1);
+            //Add response message
+            AppendChatResponse(resultMessage);
+            isRunning = false;
+            StateHasChanged();
+        }
+    }
+
+    
+}

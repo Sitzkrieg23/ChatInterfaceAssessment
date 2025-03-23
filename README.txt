@@ -13,6 +13,8 @@ How the application works
 --The user's message as well as a "Loading response..." message will appear in a chat window
 --The user has the option to clear the chat history by pressing the "Clear" button
 --Note that the post action takes a bit of time and on more complex requests the API post action might timeout
+--Please note that the APi Key might need to be updated if the application gives a 401 error. This can be done by getting an API Key
+  on OpenRouter and assigning it to the APIKey variable.
 
 Chosen Hosting Model
 --Blazor Server was chosen as per recommendation by the assessment document
